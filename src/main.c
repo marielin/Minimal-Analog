@@ -139,12 +139,12 @@ static void bg_update_proc(Layer *layer, GContext *ctx) {
 
 		if (i % 5 != 0) {
 			graphics_context_set_stroke_width(ctx, 1);
-			GRect inner_width = grect_inset(bounds, GEdgeInsets(6));
+			GRect inner_width = grect_inset(bounds, GEdgeInsets(8));
 			GPoint inner_edge = gpoint_from_polar(inner_width, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(angle));
 			graphics_draw_line(ctx, inner_edge, outer_edge);
 		} else {
 			graphics_context_set_stroke_width(ctx, 2);
-			GRect inner_width = grect_inset(bounds, GEdgeInsets(8));
+			GRect inner_width = grect_inset(bounds, GEdgeInsets(10));
 			GPoint inner_edge = gpoint_from_polar(inner_width, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(angle));
 			graphics_draw_line(ctx, inner_edge, outer_edge);
 		}
