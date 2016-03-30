@@ -1,11 +1,6 @@
 {
-<<<<<<< a341e4daa2f59fbcfc78cf83a0a4a1c59e0a56e8
     "companyName": "Sapphirine Design",
-    "longName": "Minimal Analog",
-=======
-    "companyName": "sapphirinedesign",
     "longName": "Clean Minimal Analog",
->>>>>>> Removed ticks, changed name.
     "projectType": "native",
     "resources": {
         "media": [
