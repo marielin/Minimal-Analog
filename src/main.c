@@ -129,28 +129,6 @@ static void bg_update_proc(Layer *layer, GContext *ctx) {
 	graphics_context_set_fill_color(ctx, gcolorbg);
 	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 	graphics_context_set_antialiased(ctx, ANTIALIASING);
-
-	/*
-	graphics_context_set_stroke_color(ctx, gcolort);
-	for(int i = 0; i < 60; i++) {
-		int angle = (i * 360) / 60;
-
-		GRect outer_width = grect_inset(bounds, GEdgeInsets(0));
-		GPoint outer_edge = gpoint_from_polar(outer_width, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(angle));
-
-		if (i % 5 != 0) {
-			graphics_context_set_stroke_width(ctx, 1);
-			GRect inner_width = grect_inset(bounds, GEdgeInsets(6));
-			GPoint inner_edge = gpoint_from_polar(inner_width, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(angle));
-			graphics_draw_line(ctx, inner_edge, outer_edge);
-		} else {
-			graphics_context_set_stroke_width(ctx, 2);
-			GRect inner_width = grect_inset(bounds, GEdgeInsets(8));
-			GPoint inner_edge = gpoint_from_polar(inner_width, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(angle));
-			graphics_draw_line(ctx, inner_edge, outer_edge);
-		}
-	}
-	*/
 }
 
 static void update_proc(Layer *layer, GContext *ctx) {
