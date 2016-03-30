@@ -187,6 +187,8 @@ static void bg_update_proc(Layer *layer, GContext *ctx) {
 
 static void tick_update_proc(Layer *layer, GContext *ctx) {
 	graphics_context_set_antialiased(ctx, ANTIALIASING);
+
+	/*
 	graphics_context_set_stroke_color(ctx, gcolort);
 
 	for(int i = 0; i < 60; i += 1) {
@@ -199,6 +201,7 @@ static void tick_update_proc(Layer *layer, GContext *ctx) {
 		}
 		graphics_draw_line(ctx, tick_table_inner[i], tick_table_outer[i]);
 	}
+	*/
 }
 
 static void shadow_update_proc(Layer *layer, GContext *ctx) {
