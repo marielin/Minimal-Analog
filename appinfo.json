@@ -1,31 +1,13 @@
 {
-    "appKeys": {
-        "btvibe": 8,
-        "colorbg": 0,
-        "colorh": 2,
-        "colorm": 1,
-        "colorp": 3,
-        "colort": 6,
-        "invert": 9,
-        "rectticks": 7,
-        "shadows": 4,
-        "ticks": 5,
-        "whwidth": 10
-    },
-    "capabilities": [
-        "configurable"
-    ],
-    "companyName": "lastfuture",
-    "longName": "Super Simple",
+    "companyName": "sapphirinedesign",
+    "longName": "Minimal Analog",
     "projectType": "native",
     "resources": {
         "media": []
     },
     "sdkVersion": "3",
-    "shortName": "Super Simple",
+    "shortName": "Minimal Analog",
     "targetPlatforms": [
-        "aplite",
-        "basalt",
         "chalk"
     ],
     "uuid": "ceeae81b-6b50-43b6-8bbb-6d6f6eb62b69",

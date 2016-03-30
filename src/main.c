@@ -1,512 +1,341 @@
 #include <pebble.h>
 
-#define KEY_BG_COLOR           0
-#define KEY_MINUTE_COLOR       1
-#define KEY_HOUR_COLOR         2
-#define KEY_PEG_COLOR          3
-#define KEY_SHADOWS            4
-#define KEY_TICKS              5
-#define KEY_TICK_COLOR         6
-#define KEY_RECT_TICKS         7
-#define KEY_BT_VIBE            8
-#define KEY_INVERT             9
-#define KEY_HAND_WIDTH        10
-
 #define ANTIALIASING true
 
 #define TICK_RADIUS            3
-#define HAND_MARGIN_M          16
+#define HAND_MARGIN_S          14
+#define HAND_MARGIN_M          20
 #define HAND_MARGIN_H          42
 #define SHADOW_OFFSET          2
 
 #define ANIMATION_DURATION     750
 #define ANIMATION_DELAY        0
 
-static uint8_t shadowtable[] = {192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192, \
-                                192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192, \
-                                192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192, \
-                                192,192,192,192,192,192,192,192,192,192,192,192,192,192,192,192, \
-                                192,192,192,193,192,192,192,193,192,192,192,193,196,196,196,197, \
-                                192,192,192,193,192,192,192,193,192,192,192,193,196,196,196,197, \
-                                192,192,192,193,192,192,192,193,192,192,192,193,196,196,196,197, \
-                                208,208,208,209,208,208,208,209,208,208,208,209,212,212,212,213, \
-                                192,192,193,194,192,192,193,194,196,196,197,198,200,200,201,202, \
-                                192,192,193,194,192,192,193,194,196,196,197,198,200,200,201,202, \
-                                208,208,209,210,208,208,209,210,212,212,213,214,216,216,217,218, \
-                                224,224,225,226,224,224,225,226,228,228,229,230,232,232,233,234, \
-                                192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207, \
-                                208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223, \
-                                224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239, \
-                                240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255};
-
-// alpha should only be 0b??111111 where ?? = 00 (full shade), 01 (much shade), 10 (some shade), 11 (none shade)
-static uint8_t alpha = 0b10111111;
+typedef struct {
+	int hours;
+	int minutes;
+	int seconds;
+} Time;
 
 typedef struct {
-  int hours;
-  int minutes;
-} Time;
+	int day_of_week;
+	int month;
+	int day;
+} Date;
 
 static Window *s_main_window;
 static Layer *bg_canvas_layer, *s_canvas_layer;
+static TextLayer *s_date_layer;
 
 static GPoint s_center;
 static Time s_last_time;
-static int animpercent = 0, ticks = 0, whwidth = 7;
-static bool s_animating = false, shadows = true, debug = false, rectticks = true, btvibe = false, invert = false;
+static int animpercent = 0, ticks = 0, whwidth = 7, shwidth = 2;
+static bool s_animating = false, shadows = true, debug = false, btvibe = true;
 
-static GColor gcolorbg, gcolorm, gcolorh, gcolorp, gcolorshadow, gcolort;
+static GColor gcolorbg;
+static GColor gcolors;
+static GColor gcolorm;
+static GColor gcolorh;
+static GColor gcolorp;
+static GColor gcolorshadow;
+static GColor gcolort;
 
-static void handle_bw_colors() {
-  if (!invert) {
-    gcolorbg = GColorBlack;
-    gcolorm = GColorWhite;
-    gcolorh = GColorWhite;
-    gcolorp = GColorBlack;
-    gcolort = GColorWhite;
-    shadows = false;
-  } else {
-    gcolorbg = GColorWhite;
-    gcolorm = GColorBlack;
-    gcolorh = GColorBlack;
-    gcolorp = GColorWhite;
-    gcolort = GColorBlack;
-    shadows = false;
-  }
-}
-
-static void inbox_received_handler(DictionaryIterator *iter, void *context) {
-  Tuple *colorbg_t = dict_find(iter, KEY_BG_COLOR);
-  Tuple *colorm_t = dict_find(iter, KEY_MINUTE_COLOR);
-  Tuple *colorh_t = dict_find(iter, KEY_HOUR_COLOR);
-  Tuple *colorp_t = dict_find(iter, KEY_PEG_COLOR);
-  Tuple *shadows_t = dict_find(iter, KEY_SHADOWS);
-  Tuple *ticknum_t = dict_find(iter, KEY_TICKS);
-  Tuple *colort_t = dict_find(iter, KEY_TICK_COLOR);
-  Tuple *rectticks_t = dict_find(iter, KEY_RECT_TICKS);
-  Tuple *btvibe_t = dict_find(iter, KEY_BT_VIBE);
-  Tuple *invert_t = dict_find(iter, KEY_INVERT);
-  Tuple *whwidth_t = dict_find(iter, KEY_HAND_WIDTH);
-  
-  #if defined(PBL_COLOR)
-    if(colorbg_t) {
-      int colorbg = colorbg_t->value->int32;
-      persist_write_int(KEY_BG_COLOR, colorbg);
-      gcolorbg = GColorFromHEX(colorbg);
-      gcolorshadow = (GColor8) shadowtable[alpha & gcolorbg.argb];
-    }
-    if(colorm_t) {
-      int colorm = colorm_t->value->int32;
-      persist_write_int(KEY_MINUTE_COLOR, colorm);
-      gcolorm = GColorFromHEX(colorm);
-    }
-    if(colorh_t) {
-      int colorh = colorh_t->value->int32;
-      persist_write_int(KEY_HOUR_COLOR, colorh);
-      gcolorh = GColorFromHEX(colorh);
-    }
-    if(colorp_t) {
-      int colorp = colorp_t->value->int32;
-      persist_write_int(KEY_PEG_COLOR, colorp);
-      gcolorp = GColorFromHEX(colorp);
-    }
-    if(colort_t) {
-      int colort = colort_t->value->int32;
-      persist_write_int(KEY_TICK_COLOR, colort);
-      gcolort = GColorFromHEX(colort);
-    }
-    if(shadows_t && shadows_t->value->int8 > 0) {
-      persist_write_bool(KEY_SHADOWS, true);
-      shadows = true;
-    } else {
-      persist_write_bool(KEY_SHADOWS, false);
-      shadows = false;
-    }
-  #elif defined(PBL_BW)
-    if(invert_t && invert_t->value->int8 > 0) {
-      persist_write_bool(KEY_INVERT, true);
-      invert = true;
-    } else {
-      persist_write_bool(KEY_INVERT, false);
-      invert = false;
-    }
-    handle_bw_colors();
-  #endif
-  if(ticknum_t) {
-    ticks = ticknum_t->value->uint8;
-    persist_write_int(KEY_TICKS, ticks);
-  }
-  if(rectticks_t && rectticks_t->value->int8 > 0) {
-    persist_write_bool(KEY_RECT_TICKS, true);
-    rectticks = true;
-  } else {
-    persist_write_bool(KEY_RECT_TICKS, false);
-    rectticks = false;
-  }
-  if(btvibe_t && btvibe_t->value->int8 > 0) {
-    persist_write_bool(KEY_BT_VIBE, true);
-    btvibe = true;
-  } else {
-    persist_write_bool(KEY_BT_VIBE, false);
-    btvibe = false;
-  }
-  if(whwidth_t) {
-    whwidth = whwidth_t->value->uint8;
-    persist_write_int(KEY_HAND_WIDTH, whwidth);
-  }
-
-  if(bg_canvas_layer) {
-    layer_mark_dirty(bg_canvas_layer);
-  }
-  if(s_canvas_layer) {
-    layer_mark_dirty(s_canvas_layer);
-  }
-  vibes_short_pulse();
-}
+static char date_buffer[16];
 
 /*************************** AnimationImplementation **************************/
 
 static void animation_started(Animation *anim, void *context) {
-  s_animating = true;
+	s_animating = true;
 }
 
 static void animation_stopped(Animation *anim, bool stopped, void *context) {
-  s_animating = false;
+	s_animating = false;
 }
 
 static void animate(int duration, int delay, AnimationImplementation *implementation, bool handlers) {
-  Animation *anim = animation_create();
-  animation_set_duration(anim, duration);
-  animation_set_delay(anim, delay);
-  animation_set_curve(anim, AnimationCurveEaseInOut);
-  animation_set_implementation(anim, implementation);
-  if(handlers) {
-    animation_set_handlers(anim, (AnimationHandlers) {
-      .started = animation_started,
-      .stopped = animation_stopped
-    }, NULL);
-  }
-  animation_schedule(anim);
+	Animation *anim = animation_create();
+	animation_set_duration(anim, duration);
+	animation_set_delay(anim, delay);
+	animation_set_curve(anim, AnimationCurveEaseInOut);
+	animation_set_implementation(anim, implementation);
+	if (handlers) {
+		animation_set_handlers(anim, (AnimationHandlers) {
+			.started = animation_started,
+			.stopped = animation_stopped
+		}, NULL);
+	}
+	animation_schedule(anim);
 }
 
 /************************************ UI **************************************/
 
 static void tick_handler(struct tm *tick_time, TimeUnits changed) {
-  // Store time
-  // dummy time in emulator
-  if (debug) {
-    /*
-    s_last_time.hours = 0;
-    s_last_time.minutes = tick_time->tm_sec;
-    */
-    s_last_time.hours = 10;
-    s_last_time.minutes = 8;
-  } else {
-    s_last_time.hours = tick_time->tm_hour;
-    s_last_time.hours -= (s_last_time.hours > 12) ? 12 : 0;
-    s_last_time.minutes = tick_time->tm_min;
-  }
+	// Store time
+	if (debug) {
+		// use dummy time for emulator
+		s_last_time.seconds = 32;
+		s_last_time.hours = 10;
+		s_last_time.minutes = 8;
+	} else {
+		s_last_time.hours = tick_time->tm_hour;
+		s_last_time.hours -= (s_last_time.hours > 12) ? 12 : 0;
+		s_last_time.minutes = tick_time->tm_min;
+		s_last_time.seconds = tick_time->tm_sec;
+	}
 
-  // Redraw
-  if(s_canvas_layer) {
-    layer_mark_dirty(s_canvas_layer);
-  }
+	if (changed == DAY_UNIT) {
+		strftime(date_buffer, sizeof(date_buffer), "%a\n%b %d", tick_time);
+	}
+
+	//Show the date
+	if (s_date_layer) {
+		text_layer_set_text(s_date_layer, date_buffer);
+	}
+
+	// Redraw
+	if (s_canvas_layer) {
+		layer_mark_dirty(s_canvas_layer);
+	}
 }
 
 static void handle_bluetooth(bool connected) {
-  if (btvibe && !connected) {
-    static uint32_t const segments[] = { 200, 200, 50, 150, 200 };
-    VibePattern pat = {
-    	.durations = segments,
-    	.num_segments = ARRAY_LENGTH(segments),
-    };
-    vibes_enqueue_custom_pattern(pat);
-  }
+	if (btvibe && !connected) {
+		static uint32_t const segments[] = { 200, 200, 50, 150, 200 };
+		VibePattern pat = {
+			.durations = segments,
+			.num_segments = ARRAY_LENGTH(segments),
+		};
+		vibes_enqueue_custom_pattern(pat);
+	}
 }
 
-static int32_t get_angle_for_minute(int minute) {
-  // Progress through 60 minutes, out of 360 degrees
-  return ((minute * 360) / 60);
+static int32_t get_angle_for_second(int second) {
+	// Progress through 60 seconds, out of 360 degrees
+	return (second * 360) / 60;
 }
 
-static int32_t get_angle_for_hour(int hour, int minute) {
-  // Progress through 12 hours, out of 360 degrees
-  return (((hour * 360) / 12)+(get_angle_for_minute(minute)/12));
+static int32_t get_angle_for_minute(int minute, int second) {
+	// Progress through 60 minutes, out of 360 degrees
+	return ((minute * 360) / 60) + (get_angle_for_second(second) / 60);
+}
+
+static int32_t get_angle_for_hour(int hour, int minute, int second) {
+	// Progress through 12 hours, out of 360 degrees
+	return ((hour * 360) / 12) + get_angle_for_minute(minute, second);
 }
 
 static void bg_update_proc(Layer *layer, GContext *ctx) {
-  GRect bounds = layer_get_bounds(layer);
-  graphics_context_set_fill_color(ctx, gcolorbg);
-  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
-  graphics_context_set_antialiased(ctx, ANTIALIASING);
-  if (ticks > 0) {
-    graphics_context_set_fill_color(ctx, gcolort);
-    #if defined(PBL_RECT)
-      if (rectticks) {
-        int dist_v = 39;
-        int dist_h = 46;
-        int halfwidth = (bounds.size.w/2)-1;
-        int halfheight = (bounds.size.h/2)-1;
-        switch (ticks) {
-          case 12:
-            graphics_fill_circle(ctx, GPoint(halfwidth+dist_h, 4), TICK_RADIUS/2); // 1
-            graphics_fill_circle(ctx, GPoint(halfwidth-dist_h, 4), TICK_RADIUS/2); // 11
-            graphics_fill_circle(ctx, GPoint(halfwidth+dist_h, (bounds.size.h-5)), TICK_RADIUS/2); // 5
-            graphics_fill_circle(ctx, GPoint(halfwidth-dist_h, (bounds.size.h-5)), TICK_RADIUS/2); // 7
-            graphics_fill_circle(ctx, GPoint((bounds.size.w-5), halfheight-dist_v), TICK_RADIUS/2); // 2
-            graphics_fill_circle(ctx, GPoint((bounds.size.w-5), halfheight+dist_v), TICK_RADIUS/2); // 4
-            graphics_fill_circle(ctx, GPoint(4, halfheight-dist_v), TICK_RADIUS/2); // 10
-            graphics_fill_circle(ctx, GPoint(4, halfheight+dist_v), TICK_RADIUS/2); // 8
-          case 4:
-            graphics_fill_circle(ctx, GPoint(halfwidth, (bounds.size.h-3)), TICK_RADIUS); // 6
-            graphics_fill_circle(ctx, GPoint((bounds.size.w-3), halfheight), TICK_RADIUS); // 3
-            graphics_fill_circle(ctx, GPoint(2, halfheight), TICK_RADIUS); // 9
-          case 1:
-          default:
-            graphics_fill_circle(ctx, GPoint(halfwidth, 2), TICK_RADIUS); // 12
-            break;
-        }
-      } else {
-    #endif
-    GRect insetbounds = grect_inset(bounds, GEdgeInsets(2));
-    GRect insetbounds12 = grect_inset(bounds, GEdgeInsets(4));
-    for(int i = 0; i < ticks; i++) {
-      int hour_angle = (i * 360) / ticks;
-      if (ticks == 12 && i%3!=0) {
-        GPoint pos = gpoint_from_polar(insetbounds12, GOvalScaleModeFitCircle , DEG_TO_TRIGANGLE(hour_angle));
-        graphics_fill_circle(ctx, pos, TICK_RADIUS/2);
-      } else {
-        GPoint pos = gpoint_from_polar(insetbounds, GOvalScaleModeFitCircle , DEG_TO_TRIGANGLE(hour_angle));
-        graphics_fill_circle(ctx, pos, TICK_RADIUS);
-      }
-    }
-    #if defined(PBL_RECT)
-      }
-    #endif
-  }
+	GRect bounds = layer_get_bounds(layer);
+	graphics_context_set_fill_color(ctx, gcolorbg);
+	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+	graphics_context_set_antialiased(ctx, ANTIALIASING);
+	if (ticks > 0) {
+		graphics_context_set_fill_color(ctx, gcolort);
+    	GRect insetbounds = grect_inset(bounds, GEdgeInsets(2));
+    	GRect insetbounds12 = grect_inset(bounds, GEdgeInsets(4));
+    	for(int i = 0; i < ticks; i++) {
+    		int hour_angle = (i * 360) / ticks;
+    		if (ticks == 12 && i%3!=0) {
+    			GPoint pos = gpoint_from_polar(insetbounds12, GOvalScaleModeFitCircle , DEG_TO_TRIGANGLE(hour_angle));
+    			graphics_fill_circle(ctx, pos, TICK_RADIUS/2);
+    		} else {
+    			GPoint pos = gpoint_from_polar(insetbounds, GOvalScaleModeFitCircle , DEG_TO_TRIGANGLE(hour_angle));
+    			graphics_fill_circle(ctx, pos, TICK_RADIUS);
+    		}
+    	}
+	}
 }
 
 static void update_proc(Layer *layer, GContext *ctx) {
-  GRect bounds = layer_get_bounds(layer);
-  GRect bounds_h = bounds;
-  bounds_h.size.w = bounds_h.size.h;
-  bounds_h.origin.x -= (bounds_h.size.w-bounds.size.w)/2;
-  int maxradius = bounds_h.size.w;
-  if (bounds_h.size.h < maxradius) { maxradius = bounds_h.size.h; }
-  maxradius /= 2;
-  int animradius = maxradius-((maxradius*animpercent)/100);
-  #if defined(PBL_RECT)
-    int platform_margin_m = (HAND_MARGIN_M/1.5);
-  #elif defined(PBL_ROUND)
-    int platform_margin_m = HAND_MARGIN_M;
-  #endif
-  int outer_m = animradius+platform_margin_m;
-  int outer_h = animradius+HAND_MARGIN_H;
+	GRect bounds = layer_get_bounds(layer);
+	GRect bounds_h = bounds;
+	bounds_h.size.w = bounds_h.size.h;
+	bounds_h.origin.x -= (bounds_h.size.w-bounds.size.w)/2;
+	int maxradius = bounds_h.size.w;
+	if (bounds_h.size.h < maxradius) { maxradius = bounds_h.size.h; }
+	maxradius /= 2;
+	int animradius = maxradius-((maxradius*animpercent)/100);
 
-  if (outer_m < platform_margin_m) {
-    outer_m = platform_margin_m;
-  }
-  if (outer_h < HAND_MARGIN_H) {
-    outer_h = HAND_MARGIN_H;
-  }
-  if (outer_m > maxradius) {
-    outer_m = maxradius;
-  }
-  if (outer_h > maxradius) {
-    outer_h = maxradius;
-  }
-  GRect bounds_mo = grect_inset(bounds_h, GEdgeInsets(outer_m));
-  GRect bounds_ho = grect_inset(bounds_h, GEdgeInsets(outer_h));
-  graphics_context_set_antialiased(ctx, ANTIALIASING);
+	int outer_m = animradius+HAND_MARGIN_M;
+	int outer_h = animradius+HAND_MARGIN_H;
+	int outer_s = animradius+HAND_MARGIN_S;
 
-  // Use current time while animating
-  Time mode_time = s_last_time;
+	if (outer_m < HAND_MARGIN_M) {
+		outer_m = HAND_MARGIN_M;
+	}
+	if (outer_h < HAND_MARGIN_H) {
+		outer_h = HAND_MARGIN_H;
+	}
+	if (outer_s < HAND_MARGIN_S) {
+		outer_s = HAND_MARGIN_S;
+	}
+	if (outer_m > maxradius) {
+		outer_m = maxradius;
+	}
+	if (outer_h > maxradius) {
+		outer_h = maxradius;
+	}
+	if (outer_s > maxradius) {
+		outer_s = maxradius;
+	}
 
-  // Adjust for minutes through the hour
-  float hour_deg = get_angle_for_hour(mode_time.hours, mode_time.minutes);
-  float minute_deg = get_angle_for_minute(mode_time.minutes);
+	GRect bounds_mo = grect_inset(bounds_h, GEdgeInsets(outer_m));
+	GRect bounds_ho = grect_inset(bounds_h, GEdgeInsets(outer_h));
+	GRect bounds_so = grect_inset(bounds_h, GEdgeInsets(outer_s));
+	graphics_context_set_antialiased(ctx, ANTIALIASING);
 
-  GPoint minute_hand_outer = gpoint_from_polar(bounds_mo, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(minute_deg));
-  GPoint hour_hand_outer = gpoint_from_polar(bounds_ho, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(hour_deg));
-  
-  if(shadows) {
-    graphics_context_set_stroke_color(ctx, gcolorshadow);
-    graphics_context_set_stroke_width(ctx, whwidth);
-    hour_hand_outer.y += SHADOW_OFFSET;
-    s_center.y += SHADOW_OFFSET;
-    graphics_draw_line(ctx, s_center, hour_hand_outer);
-    minute_hand_outer.y += SHADOW_OFFSET+1;
-    s_center.y += 1;
-    graphics_draw_line(ctx, s_center, minute_hand_outer);
-    hour_hand_outer.y -= SHADOW_OFFSET;
-    minute_hand_outer.y -= SHADOW_OFFSET+1;
-    s_center.y -= SHADOW_OFFSET+1;
-  }
-  graphics_context_set_stroke_color(ctx, gcolorh);
-  graphics_context_set_stroke_width(ctx, whwidth);
-  graphics_draw_line(ctx, s_center, hour_hand_outer);
-  graphics_context_set_stroke_color(ctx, gcolorm);
-  graphics_context_set_stroke_width(ctx, whwidth);
-  graphics_draw_line(ctx, s_center, minute_hand_outer);
-  graphics_context_set_fill_color(ctx, gcolorp);
-  graphics_fill_circle(ctx, s_center, whwidth/4);
+	// Use current time while animating
+	Time mode_time = s_last_time;
 
+	// Adjust for minutes through the hour
+	float hour_deg = get_angle_for_hour(mode_time.hours, mode_time.minutes, mode_time.seconds);
+	float minute_deg = get_angle_for_minute(mode_time.minutes, mode_time.seconds);
+	float second_deg = get_angle_for_second(mode_time.seconds);
+
+	GPoint second_hand_outer = gpoint_from_polar(bounds_so, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(second_deg));
+	GPoint minute_hand_outer = gpoint_from_polar(bounds_mo, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(minute_deg));
+	GPoint hour_hand_outer = gpoint_from_polar(bounds_ho, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(hour_deg));
+
+	if (shadows) {
+		graphics_context_set_stroke_color(ctx, gcolorshadow);
+		graphics_context_set_stroke_width(ctx, whwidth);
+
+		hour_hand_outer.y += SHADOW_OFFSET;
+		s_center.y += SHADOW_OFFSET;
+		graphics_draw_line(ctx, s_center, hour_hand_outer);
+
+		minute_hand_outer.y += SHADOW_OFFSET+1;
+		s_center.y += 1;
+		graphics_draw_line(ctx, s_center, minute_hand_outer);
+
+		second_hand_outer.y += SHADOW_OFFSET+2;
+		s_center.y += 1;
+		graphics_context_set_stroke_width(ctx, shwidth);
+		graphics_draw_line(ctx, s_center, second_hand_outer);
+
+		hour_hand_outer.y -= SHADOW_OFFSET;
+		minute_hand_outer.y -= SHADOW_OFFSET+1;
+		second_hand_outer.y -= SHADOW_OFFSET+2;
+
+		s_center.y -= SHADOW_OFFSET+2;
+	}
+
+	graphics_context_set_stroke_color(ctx, gcolorh);
+	graphics_context_set_stroke_width(ctx, whwidth);
+	graphics_draw_line(ctx, s_center, hour_hand_outer);
+
+	graphics_context_set_stroke_color(ctx, gcolorm);
+	graphics_context_set_stroke_width(ctx, whwidth);
+	graphics_draw_line(ctx, s_center, minute_hand_outer);
+
+	graphics_context_set_stroke_color(ctx, gcolors);
+	graphics_context_set_stroke_width(ctx, shwidth);
+	graphics_draw_line(ctx, s_center, second_hand_outer);
+
+	graphics_context_set_fill_color(ctx, gcolorp);
+	graphics_fill_circle(ctx, s_center, whwidth/4);
+
+	GRect current_text_frame = layer_get_frame(text_layer_get_layer(s_date_layer));
+	layer_set_frame(text_layer_get_layer(s_date_layer), GRect(0, 180 - (60 * animpercent) / 100, 180, 40));
 }
 
 static void window_load(Window *window) {
-  Layer *window_layer = window_get_root_layer(window);
-  GRect window_bounds = layer_get_bounds(window_layer);
+	Layer *window_layer = window_get_root_layer(window);
+	GRect window_bounds = layer_get_bounds(window_layer);
 
-  s_center = grect_center_point(&window_bounds);
-  s_center.x -= 1;
-  s_center.y -= 1;
-  
-  #if defined(PBL_COLOR)
-    if (persist_exists(KEY_BG_COLOR)) {
-      int colorbg = persist_read_int(KEY_BG_COLOR);
-      gcolorbg = GColorFromHEX(colorbg);
-    } else {
-      gcolorbg = GColorBlack;
-    }
-    gcolorshadow = (GColor8) shadowtable[alpha & gcolorbg.argb];
-    if (persist_exists(KEY_MINUTE_COLOR)) {
-      int colorm = persist_read_int(KEY_MINUTE_COLOR);
-      gcolorm = GColorFromHEX(colorm);
-    } else {
-      gcolorm = GColorWhite;
-    }
-    if (persist_exists(KEY_HOUR_COLOR)) {
-      int colorh = persist_read_int(KEY_HOUR_COLOR);
-      gcolorh = GColorFromHEX(colorh);
-    } else {
-      gcolorh = GColorRed;
-    }
-    if (persist_exists(KEY_PEG_COLOR)) {
-      int colorp = persist_read_int(KEY_PEG_COLOR);
-      gcolorp = GColorFromHEX(colorp);
-    } else {
-      gcolorp = GColorDarkGray;
-    }
-    if (persist_exists(KEY_TICK_COLOR)) {
-      int colort = persist_read_int(KEY_TICK_COLOR);
-      gcolort = GColorFromHEX(colort);
-    } else {
-      gcolort = GColorWhite;
-    }
-    if (persist_exists(KEY_SHADOWS)) {
-      shadows = persist_read_bool(KEY_SHADOWS);
-    } else {
-      shadows = false;
-    }
-  #elif defined(PBL_BW)
-    if (persist_exists(KEY_INVERT)) {
-      invert = persist_read_bool(KEY_INVERT);
-    } else {
-      invert = false;
-    }
-    handle_bw_colors();
-  #endif
-  if (persist_exists(KEY_TICKS)) {
-    ticks = persist_read_int(KEY_TICKS);
-  } else {
-    ticks = 0;
-  }
-  if (persist_exists(KEY_RECT_TICKS)) {
-    rectticks = persist_read_bool(KEY_RECT_TICKS);
-  } else {
-    rectticks = false;
-  }
-  if (persist_exists(KEY_BT_VIBE)) {
-    btvibe = persist_read_bool(KEY_BT_VIBE);
-  } else {
-    btvibe = false;
-  }
-  if (persist_exists(KEY_HAND_WIDTH)) {
-    whwidth = persist_read_int(KEY_HAND_WIDTH);
-  } else {
-    whwidth = 7;
-  }
+	s_center = grect_center_point(&window_bounds);
+	s_center.x -= 1;
+	s_center.y -= 1;
 
-  bg_canvas_layer = layer_create(window_bounds);
-  s_canvas_layer = layer_create(window_bounds);
-  layer_set_update_proc(bg_canvas_layer, bg_update_proc);
-  layer_set_update_proc(s_canvas_layer, update_proc);
-  layer_add_child(window_layer, bg_canvas_layer);
-  layer_add_child(bg_canvas_layer, s_canvas_layer);
+	bg_canvas_layer = layer_create(window_bounds);
+	s_canvas_layer = layer_create(window_bounds);
+	s_date_layer = text_layer_create(GRect(0, 180, window_bounds.size.w, 40));
+
+	text_layer_set_text(s_date_layer, date_buffer);
+	text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
+	text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+	text_layer_set_text_color(s_date_layer, GColorDarkGray);
+	text_layer_set_background_color(s_date_layer, GColorClear);
+
+	layer_set_update_proc(bg_canvas_layer, bg_update_proc);
+	layer_set_update_proc(s_canvas_layer, update_proc);
+	layer_add_child(window_layer, bg_canvas_layer);
+	layer_add_child(bg_canvas_layer, text_layer_get_layer(s_date_layer));
+	layer_add_child(bg_canvas_layer, s_canvas_layer);
 }
 
 static void window_unload(Window *window) {
-  layer_destroy(bg_canvas_layer);
-  layer_destroy(s_canvas_layer);
+	layer_destroy(bg_canvas_layer);
+	layer_destroy(s_canvas_layer);
+	text_layer_destroy(s_date_layer);
 }
 
 /*********************************** App **************************************/
 
 static int anim_percentage(AnimationProgress dist_normalized, int max) {
-  return (int)(float)(((float)dist_normalized / (float)ANIMATION_NORMALIZED_MAX) * (float)max);
+	return (int)(float)(((float)dist_normalized / (float)ANIMATION_NORMALIZED_MAX) * (float)max);
 }
 
 static void radius_update(Animation *anim, AnimationProgress dist_normalized) {
-  animpercent = anim_percentage(dist_normalized, 100);
-  layer_mark_dirty(s_canvas_layer);
+	animpercent = anim_percentage(dist_normalized, 100);
+	layer_mark_dirty(s_canvas_layer);
 }
 
 static void init() {
-  srand(time(NULL));
-  
+	srand(time(NULL));
+
   // keep lit only in emulator
-  if (watch_info_get_model()==WATCH_INFO_MODEL_UNKNOWN) {
-    debug = true;
-  }
+	if (watch_info_get_model()==WATCH_INFO_MODEL_UNKNOWN) {
+		debug = true;
+	}
 
-  time_t t = time(NULL);
-  struct tm *time_now = localtime(&t);
-  if (debug) {
-    tick_handler(time_now, SECOND_UNIT);
-  } else {
-    tick_handler(time_now, MINUTE_UNIT);
-  }
+	gcolorbg = GColorWhite;
+	gcolors = GColorBulgarianRose;
+	gcolorm = GColorBlack;
+	gcolorh = GColorBlack;
+	gcolorp = GColorWhite;
+	gcolorshadow = GColorLightGray;
+	gcolort = GColorLightGray;
 
-  s_main_window = window_create();
-  window_set_window_handlers(s_main_window, (WindowHandlers) {
-    .load = window_load,
-    .unload = window_unload,
-  });
-  window_stack_push(s_main_window, true);
+	time_t t = time(NULL);
+	struct tm *time_now = localtime(&t);
+	tick_handler(time_now, DAY_UNIT);
 
-  if (debug) {
-    tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
-  } else {
-    tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
-  }
-  
-  if (debug) {
-    light_enable(true);
-  }
-  
-  handle_bluetooth(connection_service_peek_pebble_app_connection());
-  
-  connection_service_subscribe((ConnectionHandlers) {
-    .pebble_app_connection_handler = handle_bluetooth
-  });
+	s_main_window = window_create();
+	window_set_window_handlers(s_main_window, (WindowHandlers) {
+		.load = window_load,
+		.unload = window_unload,
+	});
+	window_stack_push(s_main_window, true);
 
-  app_message_register_inbox_received(inbox_received_handler);
-  app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
+	tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
 
-  // Prepare animations
-  AnimationImplementation radius_impl = {
-    .update = radius_update
-  };
-  animate(ANIMATION_DURATION, ANIMATION_DELAY, &radius_impl, false);
+	if (debug) {
+		light_enable(true);
+	}
+
+	handle_bluetooth(connection_service_peek_pebble_app_connection());
+
+	connection_service_subscribe((ConnectionHandlers) {
+		.pebble_app_connection_handler = handle_bluetooth
+	});
+
+	// app_message_register_inbox_received(inbox_received_handler);
+	// app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
+
+    // Prepare animations
+	AnimationImplementation radius_impl = {
+		.update = radius_update
+	};
+	animate(ANIMATION_DURATION, ANIMATION_DELAY, &radius_impl, false);
 }
 
 static void deinit() {
-  window_destroy(s_main_window);
+	window_destroy(s_main_window);
 }
 
 int main() {
-  init();
-  app_event_loop();
-  deinit();
+	init();
+	app_event_loop();
+	deinit();
 }
-
