@@ -177,6 +177,7 @@ static void bg_update_proc(Layer *layer, GContext *ctx) {
 	graphics_context_set_fill_color(ctx, gcolorbg);
 	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 	graphics_context_set_antialiased(ctx, ANTIALIASING);
+<<<<<<< 0d89ed62c9b17b47a165777ab9acd27136d53713
 
 	/*
 	graphics_context_set_stroke_color(ctx, gcolort);
@@ -199,6 +200,8 @@ static void bg_update_proc(Layer *layer, GContext *ctx) {
 		}
 	}
 	*/
+=======
+>>>>>>> Changed name and gitignore, removed commented ticks code.
 }
 
 static void shadow_update_proc(Layer *layer, GContext *ctx) {
