@@ -1,6 +1,7 @@
 assets
 config
 bin
+build/
 
 # Created by https://www.gitignore.io/api/osx
 
@@ -8,6 +9,7 @@ bin
 .DS_Store
 .AppleDouble
 .LSOverride
+.lock-waf_darwin_build
 
 # Icon must end with two \r
 Icon
