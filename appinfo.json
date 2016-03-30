@@ -1,6 +1,6 @@
 {
     "companyName": "Sapphirine Design",
-    "longName": "Minimal Analog",
+    "longName": "Clean Minimal Analog",
     "projectType": "native",
     "resources": {
         "media": [
@@ -12,11 +12,11 @@
         ]
     },
     "sdkVersion": "3",
-    "shortName": "Minimal Analog",
+    "shortName": "Clean Min Analog",
     "targetPlatforms": [
         "chalk"
     ],
-    "uuid": "ceeae81b-6b50-43b6-8bbb-6d6f6eb62b69",
+    "uuid": "F803ED40-C632-4735-B399-B48770AEA680",
     "versionLabel": "1.8",
     "watchapp": {
         "watchface": true

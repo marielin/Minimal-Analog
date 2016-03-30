@@ -178,6 +178,7 @@ static void bg_update_proc(Layer *layer, GContext *ctx) {
 	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 	graphics_context_set_antialiased(ctx, ANTIALIASING);
 
+	/*
 	graphics_context_set_stroke_color(ctx, gcolort);
 	for(int i = 0; i < 60; i++) {
 		int angle = (i * 360) / 60;
@@ -197,6 +198,7 @@ static void bg_update_proc(Layer *layer, GContext *ctx) {
 			graphics_draw_line(ctx, inner_edge, outer_edge);
 		}
 	}
+	*/
 }
 
 static void shadow_update_proc(Layer *layer, GContext *ctx) {
