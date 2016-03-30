@@ -29,7 +29,7 @@ static TextLayer *s_date_layer;
 
 static GPoint s_center;
 static Time s_last_time;
-static int animpercent = 0, ticks = 0, whwidth = 7, shwidth = 2;
+static int animpercent = 0, whwidth = 7, shwidth = 2;
 static bool s_animating = false, shadows = true, debug = false, btvibe = true;
 
 static GColor gcolorbg;
@@ -121,7 +121,7 @@ static int32_t get_angle_for_minute(int minute, int second) {
 
 static int32_t get_angle_for_hour(int hour, int minute, int second) {
 	// Progress through 12 hours, out of 360 degrees
-	return ((hour * 360) / 12) + get_angle_for_minute(minute, second);
+	return ((hour * 360) / 12) + get_angle_for_minute(minute, second) / 12;
 }
 
 static void bg_update_proc(Layer *layer, GContext *ctx) {
@@ -129,20 +129,25 @@ static void bg_update_proc(Layer *layer, GContext *ctx) {
 	graphics_context_set_fill_color(ctx, gcolorbg);
 	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 	graphics_context_set_antialiased(ctx, ANTIALIASING);
-	if (ticks > 0) {
-		graphics_context_set_fill_color(ctx, gcolort);
-    	GRect insetbounds = grect_inset(bounds, GEdgeInsets(2));
-    	GRect insetbounds12 = grect_inset(bounds, GEdgeInsets(4));
-    	for(int i = 0; i < ticks; i++) {
-    		int hour_angle = (i * 360) / ticks;
-    		if (ticks == 12 && i%3!=0) {
-    			GPoint pos = gpoint_from_polar(insetbounds12, GOvalScaleModeFitCircle , DEG_TO_TRIGANGLE(hour_angle));
-    			graphics_fill_circle(ctx, pos, TICK_RADIUS/2);
-    		} else {
-    			GPoint pos = gpoint_from_polar(insetbounds, GOvalScaleModeFitCircle , DEG_TO_TRIGANGLE(hour_angle));
-    			graphics_fill_circle(ctx, pos, TICK_RADIUS);
-    		}
-    	}
+
+	graphics_context_set_stroke_color(ctx, gcolort);
+	for(int i = 0; i < 60; i++) {
+		int angle = (i * 360) / 60;
+
+		GRect outer_width = grect_inset(bounds, GEdgeInsets(0));
+		GPoint outer_edge = gpoint_from_polar(outer_width, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(angle));
+
+		if (i % 5 != 0) {
+			graphics_context_set_stroke_width(ctx, 1);
+			GRect inner_width = grect_inset(bounds, GEdgeInsets(6));
+			GPoint inner_edge = gpoint_from_polar(inner_width, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(angle));
+			graphics_draw_line(ctx, inner_edge, outer_edge);
+		} else {
+			graphics_context_set_stroke_width(ctx, 2);
+			GRect inner_width = grect_inset(bounds, GEdgeInsets(8));
+			GPoint inner_edge = gpoint_from_polar(inner_width, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(angle));
+			graphics_draw_line(ctx, inner_edge, outer_edge);
+		}
 	}
 }
 
@@ -235,8 +240,9 @@ static void update_proc(Layer *layer, GContext *ctx) {
 	graphics_context_set_fill_color(ctx, gcolorp);
 	graphics_fill_circle(ctx, s_center, whwidth/4);
 
-	GRect current_text_frame = layer_get_frame(text_layer_get_layer(s_date_layer));
-	layer_set_frame(text_layer_get_layer(s_date_layer), GRect(0, 180 - (60 * animpercent) / 100, 180, 40));
+	if (animpercent < 100) {
+		layer_set_frame(text_layer_get_layer(s_date_layer), GRect(0, 180 - (60 * animpercent) / 100, 180, 40));
+	}
 }
 
 static void window_load(Window *window) {
@@ -295,7 +301,7 @@ static void init() {
 	gcolorh = GColorBlack;
 	gcolorp = GColorWhite;
 	gcolorshadow = GColorLightGray;
-	gcolort = GColorLightGray;
+	gcolort = GColorArmyGreen;
 
 	time_t t = time(NULL);
 	struct tm *time_now = localtime(&t);
