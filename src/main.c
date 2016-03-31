@@ -436,9 +436,6 @@ static void init() {
 		.pebble_app_connection_handler = handle_bluetooth
 	});
 
-	// app_message_register_inbox_received(inbox_received_handler);
-	// app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
-
     // Prepare animations
 	AnimationImplementation radius_impl = {
 		.update = radius_update
