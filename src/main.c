@@ -12,14 +12,14 @@
 #define ANIMATION_DELAY        0
 
 #define DATE_RECT_RIGHT GRect(90, 77, 70, 40)
-#define DATE_RECT_LEFT GRect(20, 77, 75, 40)
+#define DATE_RECT_TOP GRect(50, 48, 80, 40)
 #define DATE_RECT_BOTTOM GRect(50, 118, 80, 40)
 
 #define LOGO_RECT GRect(80, 140, 19, 6)
 
 #define DATE_POS_RIGHT 0
-#define DATE_POS_LEFT 1
-#define DATE_POS_BOTTOM 2
+#define DATE_POS_BOTTOM 1
+#define DATE_POS_TOP 2
 
 typedef struct {
 	int hours;
@@ -110,9 +110,9 @@ static void tick_handler(struct tm *tick_time, TimeUnits changed) {
 	// debug = true;
 	if (debug) {
 		// use dummy time for emulator
-		s_last_time.seconds = 30;
-		s_last_time.hours = 0;
-		s_last_time.minutes = 11;
+		s_last_time.seconds = 20;
+		s_last_time.hours = 6;
+		s_last_time.minutes = 15;
 	} else {
 		s_last_time.hours = tick_time->tm_hour;
 		s_last_time.hours -= (s_last_time.hours > 12) ? 12 : 0;
@@ -133,7 +133,7 @@ static void tick_handler(struct tm *tick_time, TimeUnits changed) {
 		if (((minute_angle > 70) && (minute_angle < 110)) || ((hour_angle > 70) && (hour_angle < 110))) {
 			date_position++;
 
-			if (((minute_angle > 250) && (minute_angle < 290)) || ((hour_angle > 250) && (hour_angle < 290))) {
+			if (((minute_angle > 150) && (minute_angle < 210)) || ((hour_angle > 150) && (hour_angle < 210))) {
 				date_position++;
 			}
 		}
@@ -142,9 +142,9 @@ static void tick_handler(struct tm *tick_time, TimeUnits changed) {
 			if (date_position == DATE_POS_RIGHT) {
 				text_layer_set_text_alignment(s_date_layer, GTextAlignmentRight);
 				layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_RIGHT);
-			} else if (date_position == DATE_POS_LEFT) {
-				text_layer_set_text_alignment(s_date_layer, GTextAlignmentLeft);
-				layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_LEFT);
+			} else if (date_position == DATE_POS_TOP) {
+				text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
+				layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_TOP);
 			} else if (date_position == DATE_POS_BOTTOM) {
 				text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
 				layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_BOTTOM);
@@ -322,9 +322,9 @@ static void window_load(Window *window) {
 	if (date_position == DATE_POS_RIGHT) {
 		text_layer_set_text_alignment(s_date_layer, GTextAlignmentRight);
 		layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_RIGHT);
-	} else if (date_position == DATE_POS_LEFT) {
-		text_layer_set_text_alignment(s_date_layer, GTextAlignmentLeft);
-		layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_LEFT);
+	} else if (date_position == DATE_POS_TOP) {
+		text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
+		layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_TOP);
 	} else if (date_position == DATE_POS_BOTTOM) {
 		text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
 		layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_BOTTOM);
