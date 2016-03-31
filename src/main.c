@@ -11,15 +11,7 @@
 #define ANIMATION_DURATION     750
 #define ANIMATION_DELAY        0
 
-#define DATE_RECT_RIGHT GRect(110, 77, 65, 40)
-#define DATE_RECT_TOP GRect(50, 48, 80, 40)
-#define DATE_RECT_BOTTOM GRect(50, 118, 80, 40)
-
 #define LOGO_RECT GRect(80, 140, 19, 6)
-
-#define DATE_POS_RIGHT 0
-#define DATE_POS_BOTTOM 1
-#define DATE_POS_TOP 2
 
 typedef struct {
 	int hours;
@@ -27,21 +19,8 @@ typedef struct {
 	int seconds;
 } Time;
 
-typedef struct {
-	int day_of_week;
-	int month;
-	int day;
-} Date;
-
-typedef enum {
-	RIGHT,
-	LEFT,
-	BOTTOM
-} Date_position;
-
 static Window *s_main_window;
-static Layer *bg_canvas_layer, *s_canvas_layer, *shadow_canvas_layer, *tick_canvas_layer;
-static TextLayer *s_date_layer;
+static Layer *bg_canvas_layer, *s_canvas_layer, *shadow_canvas_layer;
 
 static GBitmap *s_logo;
 static BitmapLayer *s_logo_layer;
@@ -51,20 +30,12 @@ static Time s_last_time;
 static int animpercent = 0, whwidth = 7, shwidth = 2;
 static bool s_animating = false, shadows = true, debug = false, btvibe = true;
 
-static GPoint tick_table_outer[60];
-static GPoint tick_table_inner[60];
-
-static int date_position = DATE_POS_RIGHT;
-
 static GColor gcolorbg;
 static GColor gcolors;
 static GColor gcolorm;
 static GColor gcolorh;
 static GColor gcolorp;
 static GColor gcolorshadow;
-static GColor gcolort;
-
-static char date_buffer[16] = "Mon Day ##";
 
 /*************************** AnimationImplementation **************************/
 
@@ -130,41 +101,6 @@ static void tick_handler(struct tm *tick_time, TimeUnits changed) {
 	if (s_canvas_layer) {
 		layer_mark_dirty(s_canvas_layer);
 	}
-
-	if (changed & MINUTE_UNIT) {
-		date_position = DATE_POS_RIGHT;
-		int minute_angle = (int)get_angle_for_minute(s_last_time.minutes, s_last_time.seconds);
-		int hour_angle = (int)get_angle_for_hour(s_last_time.hours, s_last_time.minutes, s_last_time.seconds);
-
-		if (((minute_angle > 60) && (minute_angle < 120)) || ((hour_angle > 60) && (hour_angle < 120))) {
-			date_position++;
-
-			if (((minute_angle > 150) && (minute_angle < 210)) || ((hour_angle > 150) && (hour_angle < 210))) {
-				date_position++;
-			}
-		}
-
-		if (s_date_layer) {
-			if (date_position == DATE_POS_RIGHT) {
-				text_layer_set_text_alignment(s_date_layer, GTextAlignmentLeft);
-				layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_RIGHT);
-			} else if (date_position == DATE_POS_TOP) {
-				text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
-				layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_TOP);
-			} else if (date_position == DATE_POS_BOTTOM) {
-				text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
-				layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_BOTTOM);
-			}
-		}
-	}
-
-	if (changed & DAY_UNIT) {
-		strftime(date_buffer, sizeof(date_buffer), "%a %d", tick_time);
-
-		if (s_date_layer) {
-			text_layer_set_text(s_date_layer, date_buffer);
-		}
-	}
 }
 
 static void handle_bluetooth(bool connected) {
@@ -183,25 +119,6 @@ static void bg_update_proc(Layer *layer, GContext *ctx) {
 	graphics_context_set_fill_color(ctx, gcolorbg);
 	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 	graphics_context_set_antialiased(ctx, ANTIALIASING);
-}
-
-static void tick_update_proc(Layer *layer, GContext *ctx) {
-	graphics_context_set_antialiased(ctx, ANTIALIASING);
-
-	/*
-	graphics_context_set_stroke_color(ctx, gcolort);
-
-	for(int i = 0; i < 60; i += 1) {
-		int angle = i * 6;
-
-		if (angle % 30 != 0) {
-			graphics_context_set_stroke_width(ctx, 1);
-		} else {
-			graphics_context_set_stroke_width(ctx, 2);
-		}
-		graphics_draw_line(ctx, tick_table_inner[i], tick_table_outer[i]);
-	}
-	*/
 }
 
 static void shadow_update_proc(Layer *layer, GContext *ctx) {
@@ -305,29 +222,6 @@ static void update_proc(Layer *layer, GContext *ctx) {
 	graphics_fill_circle(ctx, s_center, whwidth/4);
 }
 
-static void fill_tick_tables(Layer *layer) {
-	GRect bounds = layer_get_bounds(layer);
-
-	GRect outer_width = grect_inset(bounds, GEdgeInsets(7));
-	GRect inner_width = grect_inset(bounds, GEdgeInsets(13));
-	GRect inner_width_cardinal = grect_inset(bounds, GEdgeInsets(17));
-
-	for(int i = 0; i < 60; i += 1) {
-		int angle = i * 6;
-
-		GPoint outer_edge = gpoint_from_polar(outer_width, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(angle));
-		tick_table_outer[i] = outer_edge;
-
-		GPoint inner_edge;
-		if (angle % 90 == 0) {
-			inner_edge = gpoint_from_polar(inner_width_cardinal, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(angle));
-		} else {
-			inner_edge = gpoint_from_polar(inner_width, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(angle));
-		}
-		tick_table_inner[i] = inner_edge;
-	}
-}
-
 static void window_load(Window *window) {
 	Layer *window_layer = window_get_root_layer(window);
 	GRect window_bounds = layer_get_bounds(window_layer);
@@ -345,35 +239,12 @@ static void window_load(Window *window) {
 	bg_canvas_layer = layer_create(window_bounds);
 	s_canvas_layer = layer_create(window_bounds);
 	shadow_canvas_layer = layer_create(window_bounds);
-	tick_canvas_layer = layer_create(window_bounds);
-	s_date_layer = text_layer_create(DATE_RECT_RIGHT);
-
-	fill_tick_tables(tick_canvas_layer);
-
-	text_layer_set_text(s_date_layer, date_buffer);
-	text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-	text_layer_set_text_color(s_date_layer, GColorDarkGray);
-	text_layer_set_background_color(s_date_layer, GColorClear);
-
-	if (date_position == DATE_POS_RIGHT) {
-		text_layer_set_text_alignment(s_date_layer, GTextAlignmentLeft);
-		layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_RIGHT);
-	} else if (date_position == DATE_POS_TOP) {
-		text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
-		layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_TOP);
-	} else if (date_position == DATE_POS_BOTTOM) {
-		text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
-		layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_BOTTOM);
-	}
 
 	layer_set_update_proc(bg_canvas_layer, bg_update_proc);
 	layer_set_update_proc(shadow_canvas_layer, shadow_update_proc);
-	layer_set_update_proc(tick_canvas_layer, tick_update_proc);
 	layer_set_update_proc(s_canvas_layer, update_proc);
 	layer_add_child(window_layer, bg_canvas_layer);
 	layer_add_child(bg_canvas_layer, shadow_canvas_layer);
-	layer_add_child(bg_canvas_layer, tick_canvas_layer);
-	layer_add_child(bg_canvas_layer, text_layer_get_layer(s_date_layer));
 	layer_add_child(bg_canvas_layer, bitmap_layer_get_layer(s_logo_layer));
 	layer_add_child(bg_canvas_layer, s_canvas_layer);
 }
@@ -381,7 +252,6 @@ static void window_load(Window *window) {
 static void window_unload(Window *window) {
 	layer_destroy(bg_canvas_layer);
 	layer_destroy(s_canvas_layer);
-	text_layer_destroy(s_date_layer);
 	gbitmap_destroy(s_logo);
 	bitmap_layer_destroy(s_logo_layer);
 }
@@ -411,7 +281,6 @@ static void init() {
 	gcolorh = GColorBlack;
 	gcolorp = GColorWhite;
 	gcolorshadow = GColorLightGray;
-	gcolort = GColorDarkGray;
 
 	time_t t = time(NULL);
 	struct tm *time_now = localtime(&t);
