@@ -11,9 +11,11 @@
 #define ANIMATION_DURATION     750
 #define ANIMATION_DELAY        0
 
-#define DATE_RECT_RIGHT GRect(90, 77, 75, 40)
-#define DATE_RECT_LEFT GRect(15, 77, 75, 40)
-#define DATE_RECT_BOTTOM GRect(50, 130, 80, 40)
+#define DATE_RECT_RIGHT GRect(90, 77, 70, 40)
+#define DATE_RECT_LEFT GRect(20, 77, 75, 40)
+#define DATE_RECT_BOTTOM GRect(50, 118, 80, 40)
+
+#define LOGO_RECT GRect(80, 140, 19, 6)
 
 #define DATE_POS_RIGHT 0
 #define DATE_POS_LEFT 1
@@ -40,6 +42,9 @@ typedef enum {
 static Window *s_main_window;
 static Layer *bg_canvas_layer, *s_canvas_layer, *shadow_canvas_layer;
 static TextLayer *s_date_layer;
+
+static GBitmap *s_logo;
+static BitmapLayer *s_logo_layer;
 
 static GPoint s_center, second_hand_outer, minute_hand_outer, hour_hand_outer;
 static Time s_last_time;
@@ -102,11 +107,12 @@ static int32_t get_angle_for_hour(int hour, int minute, int second) {
 
 static void tick_handler(struct tm *tick_time, TimeUnits changed) {
 	// Store time
+	// debug = true;
 	if (debug) {
 		// use dummy time for emulator
-		s_last_time.seconds = 2;
-		s_last_time.hours = 6;
-		s_last_time.minutes = 15;
+		s_last_time.seconds = 30;
+		s_last_time.hours = 0;
+		s_last_time.minutes = 11;
 	} else {
 		s_last_time.hours = tick_time->tm_hour;
 		s_last_time.hours -= (s_last_time.hours > 12) ? 12 : 0;
@@ -297,6 +303,12 @@ static void window_load(Window *window) {
 	s_center.x -= 1;
 	s_center.y -= 1;
 
+	s_logo = gbitmap_create_with_resource(RESOURCE_ID_LOGO);
+	s_logo_layer = bitmap_layer_create(LOGO_RECT);
+
+	bitmap_layer_set_compositing_mode(s_logo_layer, GCompOpSet);
+	bitmap_layer_set_bitmap(s_logo_layer, s_logo);
+
 	bg_canvas_layer = layer_create(window_bounds);
 	s_canvas_layer = layer_create(window_bounds);
 	shadow_canvas_layer = layer_create(window_bounds);
@@ -324,6 +336,7 @@ static void window_load(Window *window) {
 	layer_add_child(window_layer, bg_canvas_layer);
 	layer_add_child(bg_canvas_layer, shadow_canvas_layer);
 	layer_add_child(bg_canvas_layer, text_layer_get_layer(s_date_layer));
+	layer_add_child(bg_canvas_layer, bitmap_layer_get_layer(s_logo_layer));
 	layer_add_child(bg_canvas_layer, s_canvas_layer);
 }
 
@@ -331,6 +344,8 @@ static void window_unload(Window *window) {
 	layer_destroy(bg_canvas_layer);
 	layer_destroy(s_canvas_layer);
 	text_layer_destroy(s_date_layer);
+	gbitmap_destroy(s_logo);
+	bitmap_layer_destroy(s_logo_layer);
 }
 
 /*********************************** App **************************************/

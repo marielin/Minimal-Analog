@@ -3,7 +3,13 @@
     "longName": "Minimal Analog",
     "projectType": "native",
     "resources": {
-        "media": []
+        "media": [
+	        {
+	        	"type": "bitmap",
+	        	"name": "LOGO",
+	        	"file": "round.png"
+	        }
+        ]
     },
     "sdkVersion": "3",
     "shortName": "Minimal Analog",
