@@ -377,10 +377,12 @@ static void window_load(Window *window) {
 
 static void window_unload(Window *window) {
 	layer_destroy(bg_canvas_layer);
-	layer_destroy(s_canvas_layer);
+	layer_destroy(shadow_canvas_layer);
+	layer_destroy(tick_canvas_layer);
 	text_layer_destroy(s_date_layer);
 	gbitmap_destroy(s_logo);
 	bitmap_layer_destroy(s_logo_layer);
+	layer_destroy(s_canvas_layer);
 }
 
 /*********************************** App **************************************/
