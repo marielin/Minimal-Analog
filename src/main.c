@@ -30,12 +30,15 @@ static Time s_last_time;
 static int animpercent = 0, whwidth = 7, shwidth = 2;
 static bool s_animating = false, shadows = true, debug = false, btvibe = true;
 
+static GPoint second_hand_table[60];
+
 static GColor gcolorbg;
 static GColor gcolors;
 static GColor gcolorm;
 static GColor gcolorh;
 static GColor gcolorp;
 static GColor gcolorshadow;
+static GColor gcolort;
 
 /*************************** AnimationImplementation **************************/
 
@@ -118,7 +121,6 @@ static void bg_update_proc(Layer *layer, GContext *ctx) {
 	GRect bounds = layer_get_bounds(layer);
 	graphics_context_set_fill_color(ctx, gcolorbg);
 	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
-	graphics_context_set_antialiased(ctx, ANTIALIASING);
 }
 
 static void shadow_update_proc(Layer *layer, GContext *ctx) {
@@ -168,16 +170,21 @@ static void shadow_update_proc(Layer *layer, GContext *ctx) {
 	}
 
 	// Calculate seconds hand.
-	int outer_s = animradius+HAND_MARGIN_S;
-	if (outer_s < HAND_MARGIN_S) {
-		outer_s = HAND_MARGIN_S;
+	if (animpercent < 100) {
+		int outer_s = animradius+HAND_MARGIN_S;
+		if (outer_s < HAND_MARGIN_S) {
+			outer_s = HAND_MARGIN_S;
+		}
+		if (outer_s > maxradius) {
+			outer_s = maxradius;
+		}
+		GRect bounds_so = grect_inset(bounds_h, GEdgeInsets(outer_s));
+		float second_deg = get_angle_for_second(mode_time.seconds);
+		second_hand_outer = gpoint_from_polar(bounds_so, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(second_deg));
+	} else {
+		second_hand_outer = second_hand_table[mode_time.seconds];
 	}
-	if (outer_s > maxradius) {
-		outer_s = maxradius;
-	}
-	GRect bounds_so = grect_inset(bounds_h, GEdgeInsets(outer_s));
-	float second_deg = get_angle_for_second(mode_time.seconds);
-	second_hand_outer = gpoint_from_polar(bounds_so, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(second_deg));
+
 
 	graphics_context_set_stroke_width(ctx, whwidth);
 
@@ -222,6 +229,16 @@ static void update_proc(Layer *layer, GContext *ctx) {
 	graphics_fill_circle(ctx, s_center, whwidth/4);
 }
 
+static void fill_second_hand_table(Layer *layer) {
+	GRect bounds = layer_get_bounds(layer);
+	GRect bounds_so = grect_inset(bounds, GEdgeInsets(HAND_MARGIN_S));
+
+	for(int i = 0; i < 60; i += 1) {
+		int angle = i * 6;
+		second_hand_table[i] = gpoint_from_polar(bounds_so, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(angle));
+	}
+}
+
 static void window_load(Window *window) {
 	Layer *window_layer = window_get_root_layer(window);
 	GRect window_bounds = layer_get_bounds(window_layer);
@@ -239,6 +256,8 @@ static void window_load(Window *window) {
 	bg_canvas_layer = layer_create(window_bounds);
 	s_canvas_layer = layer_create(window_bounds);
 	shadow_canvas_layer = layer_create(window_bounds);
+
+	fill_second_hand_table(s_canvas_layer);
 
 	layer_set_update_proc(bg_canvas_layer, bg_update_proc);
 	layer_set_update_proc(shadow_canvas_layer, shadow_update_proc);
@@ -281,6 +300,7 @@ static void init() {
 	gcolorh = GColorBlack;
 	gcolorp = GColorWhite;
 	gcolorshadow = GColorLightGray;
+	gcolort = GColorDarkGray;
 
 	time_t t = time(NULL);
 	struct tm *time_now = localtime(&t);
