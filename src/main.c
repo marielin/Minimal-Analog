@@ -105,7 +105,7 @@ static int32_t get_angle_for_minute(int minute, int second) {
 
 static int32_t get_angle_for_hour(int hour, int minute, int second) {
 	// Progress through 12 hours, out of 360 degrees
-	return ((hour * 360) / 12) + get_angle_for_minute(minute, second) / 12;
+	return ((hour * 360) / 12) + (get_angle_for_minute(minute, second) / 12);
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits changed) {
@@ -220,7 +220,7 @@ static void shadow_update_proc(Layer *layer, GContext *ctx) {
 	Time mode_time = s_last_time;
 
 	// Calculate hours hand.
-	if ((s_last_time.minutes % 10 == 0) || (animpercent < 100)) {
+	if (((s_last_time.minutes % 10 == 0) && (s_last_time.seconds == 0)) || (animpercent < 100)) {
 		int outer_h = animradius+HAND_MARGIN_H;
 		if (outer_h < HAND_MARGIN_H) {
 			outer_h = HAND_MARGIN_H;
@@ -414,7 +414,7 @@ static void init() {
 
 	time_t t = time(NULL);
 	struct tm *time_now = localtime(&t);
-	tick_handler(time_now, DAY_UNIT | MINUTE_UNIT);
+	tick_handler(time_now, DAY_UNIT | HOUR_UNIT | MINUTE_UNIT | SECOND_UNIT);
 
 	s_main_window = window_create();
 	window_set_window_handlers(s_main_window, (WindowHandlers) {
