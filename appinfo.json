@@ -1,6 +1,6 @@
 {
     "companyName": "Sapphirine Design",
-    "longName": "Minimal Analog",
+    "longName": "Round Analog",
     "projectType": "native",
     "resources": {
         "media": [
@@ -12,7 +12,7 @@
         ]
     },
     "sdkVersion": "3",
-    "shortName": "Minimal Analog",
+    "shortName": "Round Analog",
     "targetPlatforms": [
         "chalk"
     ],
