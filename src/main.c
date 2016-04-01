@@ -49,10 +49,11 @@ static BitmapLayer *s_logo_layer;
 static GPoint s_center, second_hand_outer, minute_hand_outer, hour_hand_outer;
 static Time s_last_time;
 static int animpercent = 0, whwidth = 7, shwidth = 2;
-static bool s_animating = false, shadows = true, debug = false, btvibe = true;
+static bool s_animating = false, debug = false, btvibe = true;
 
 static GPoint tick_table_outer[60];
 static GPoint tick_table_inner[60];
+static GPoint second_hand_table[60];
 
 static int date_position = DATE_POS_RIGHT;
 
@@ -248,16 +249,20 @@ static void shadow_update_proc(Layer *layer, GContext *ctx) {
 	}
 
 	// Calculate seconds hand.
-	int outer_s = animradius+HAND_MARGIN_S;
-	if (outer_s < HAND_MARGIN_S) {
-		outer_s = HAND_MARGIN_S;
+	if (animpercent < 100) {
+		int outer_s = animradius+HAND_MARGIN_S;
+		if (outer_s < HAND_MARGIN_S) {
+			outer_s = HAND_MARGIN_S;
+		}
+		if (outer_s > maxradius) {
+			outer_s = maxradius;
+		}
+		GRect bounds_so = grect_inset(bounds_h, GEdgeInsets(outer_s));
+		float second_deg = get_angle_for_second(mode_time.seconds);
+		second_hand_outer = gpoint_from_polar(bounds_so, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(second_deg));
+	} else {
+		second_hand_outer = second_hand_table[mode_time.seconds];
 	}
-	if (outer_s > maxradius) {
-		outer_s = maxradius;
-	}
-	GRect bounds_so = grect_inset(bounds_h, GEdgeInsets(outer_s));
-	float second_deg = get_angle_for_second(mode_time.seconds);
-	second_hand_outer = gpoint_from_polar(bounds_so, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(second_deg));
 
 	graphics_context_set_stroke_width(ctx, whwidth);
 
@@ -300,6 +305,16 @@ static void update_proc(Layer *layer, GContext *ctx) {
 	// Draw pin.
 	graphics_context_set_fill_color(ctx, gcolorp);
 	graphics_fill_circle(ctx, s_center, whwidth/4);
+}
+
+static void fill_second_hand_table(Layer *layer) {
+	GRect bounds = layer_get_bounds(layer);
+	GRect bounds_so = grect_inset(bounds, GEdgeInsets(HAND_MARGIN_S));
+
+	for(int i = 0; i < 60; i += 1) {
+		int angle = i * 6;
+		second_hand_table[i] = gpoint_from_polar(bounds_so, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(angle));
+	}
 }
 
 static void fill_tick_tables(Layer *layer) {
@@ -346,6 +361,7 @@ static void window_load(Window *window) {
 	s_date_layer = text_layer_create(DATE_RECT_RIGHT);
 
 	fill_tick_tables(tick_canvas_layer);
+	fill_second_hand_table(s_canvas_layer);
 
 	text_layer_set_text(s_date_layer, date_buffer);
 	text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
