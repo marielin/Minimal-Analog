@@ -161,6 +161,10 @@ static void tick_handler(struct tm *tick_time, TimeUnits changed) {
 
 	if (changed & DAY_UNIT) {
 		strftime(date_buffer, sizeof(date_buffer), "%a %d", tick_time);
+		if (tick_time->tm_mday < 10) {
+			date_buffer[4] = date_buffer[5];
+			date_buffer[5] = 0;
+		}
 
 		if (s_date_layer) {
 			text_layer_set_text(s_date_layer, date_buffer);
