@@ -4,4 +4,4 @@ A simple, classy, non-configurable analog watch face for Pebble Time Round, base
 
 This "clean" version of Round Analog has no date display or ticks. 
 
-<img src="https://raw.githubusercontent.com/marielin/Round-Analog/master/screenshots/round_analog_screenshot.png" width="300">
+<img src="https://raw.githubusercontent.com/marielin/Round-Analog/clean/screenshots/clean_round_analog_screenshot.png" width="300">
