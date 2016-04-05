@@ -28,7 +28,7 @@ static BitmapLayer *s_logo_layer;
 static GPoint s_center, second_hand_outer, minute_hand_outer, hour_hand_outer;
 static Time s_last_time;
 static int animpercent = 0, whwidth = 7, shwidth = 2;
-static bool s_animating = false, shadows = true, debug = false, btvibe = true;
+static bool s_animating = false, debug = false, btvibe = true;
 
 static GPoint second_hand_table[60];
 
