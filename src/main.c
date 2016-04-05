@@ -11,7 +11,7 @@
 #define ANIMATION_DURATION     750
 #define ANIMATION_DELAY        0
 
-#define DATE_RECT_RIGHT GRect(110, 77, 65, 40)
+#define DATE_RECT_RIGHT GRect(90, 77, 80, 40)
 #define DATE_RECT_TOP GRect(50, 48, 80, 40)
 #define DATE_RECT_BOTTOM GRect(50, 118, 80, 40)
 
@@ -122,7 +122,7 @@ static void tick_handler(struct tm *tick_time, TimeUnits changed) {
 
 	if (debug) {
 		// use dummy time for emulator
-		s_last_time.seconds = 30;
+		s_last_time.seconds = 0;
 		s_last_time.hours = 10;
 		s_last_time.minutes = 10;
 	}
@@ -147,13 +147,10 @@ static void tick_handler(struct tm *tick_time, TimeUnits changed) {
 
 		if (s_date_layer) {
 			if (date_position == DATE_POS_RIGHT) {
-				text_layer_set_text_alignment(s_date_layer, GTextAlignmentLeft);
 				layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_RIGHT);
 			} else if (date_position == DATE_POS_TOP) {
-				text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
 				layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_TOP);
 			} else if (date_position == DATE_POS_BOTTOM) {
-				text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
 				layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_BOTTOM);
 			}
 		}
@@ -369,17 +366,15 @@ static void window_load(Window *window) {
 
 	text_layer_set_text(s_date_layer, date_buffer);
 	text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+	text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
 	text_layer_set_text_color(s_date_layer, GColorDarkGray);
 	text_layer_set_background_color(s_date_layer, GColorClear);
 
 	if (date_position == DATE_POS_RIGHT) {
-		text_layer_set_text_alignment(s_date_layer, GTextAlignmentLeft);
 		layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_RIGHT);
 	} else if (date_position == DATE_POS_TOP) {
-		text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
 		layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_TOP);
 	} else if (date_position == DATE_POS_BOTTOM) {
-		text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
 		layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_BOTTOM);
 	}
 
