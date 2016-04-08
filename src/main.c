@@ -156,7 +156,7 @@ static void shadow_update_proc(Layer *layer, GContext *ctx) {
 	}
 
 	// Calculate minutes hand.
-	if ((s_last_time.seconds % 10 == 0) || (animpercent < 100)) {
+	if ((s_last_time.seconds % 5 == 0) || (animpercent < 100)) {
 		int outer_m = animradius+HAND_MARGIN_M;
 		if (outer_m < HAND_MARGIN_M) {
 			outer_m = HAND_MARGIN_M;
