@@ -49,7 +49,7 @@ static BitmapLayer *s_logo_layer;
 static GPoint s_center, second_hand_outer, minute_hand_outer, hour_hand_outer;
 static Time s_last_time;
 static int animpercent = 0, whwidth = 7, shwidth = 2;
-static bool s_animating = false, debug = false, btvibe = true, low_power_mode = false;
+static bool s_animating = false, debug = false, btvibe = true, low_power_mode = true;
 
 static GPoint tick_table_outer[60];
 static GPoint tick_table_inner[60];

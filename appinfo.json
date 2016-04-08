@@ -1,6 +1,6 @@
 {
     "companyName": "Sapphirine Design",
-    "longName": "Round Analog",
+    "longName": "Round Analog LP",
     "projectType": "native",
     "resources": {
         "media": [
@@ -12,11 +12,11 @@
         ]
     },
     "sdkVersion": "3",
-    "shortName": "Round Analog",
+    "shortName": "Round Analog LP",
     "targetPlatforms": [
         "chalk"
     ],
-    "uuid": "ceeae81b-6b50-43b6-8bbb-6d6f6eb62b69",
+    "uuid": "52D3BE89-C520-4BCD-B1B6-63A9E7C01726",
     "versionLabel": "1.8",
     "watchapp": {
         "watchface": true
