@@ -49,7 +49,7 @@ static BitmapLayer *s_logo_layer;
 static GPoint s_center, second_hand_outer, minute_hand_outer, hour_hand_outer;
 static Time s_last_time;
 static int animpercent = 0, whwidth = 7, shwidth = 2;
-static bool s_animating = false, debug = false, btvibe = true;
+static bool s_animating = false, debug = false, btvibe = true, low_power_mode = false;
 
 static GPoint tick_table_outer[60];
 static GPoint tick_table_inner[60];
@@ -95,17 +95,15 @@ static void animate(int duration, int delay, AnimationImplementation *implementa
 /************************************ UI **************************************/
 
 static int32_t get_angle_for_second(int second) {
-	// Progress through 60 seconds, out of 360 degrees
+	if (low_power_mode) return 0;
 	return (second * 360) / 60;
 }
 
 static int32_t get_angle_for_minute(int minute, int second) {
-	// Progress through 60 minutes, out of 360 degrees
 	return ((minute * 360) / 60) + (get_angle_for_second(second) / 60);
 }
 
 static int32_t get_angle_for_hour(int hour, int minute, int second) {
-	// Progress through 12 hours, out of 360 degrees
 	return ((hour * 360) / 12) + (get_angle_for_minute(minute, second) / 12);
 }
 
@@ -118,7 +116,9 @@ static void tick_handler(struct tm *tick_time, TimeUnits changed) {
 	if (changed & MINUTE_UNIT) {
 		s_last_time.minutes = tick_time->tm_min;
 	}
-	s_last_time.seconds = tick_time->tm_sec;
+	if (!low_power_mode) {
+		s_last_time.seconds = tick_time->tm_sec;
+	}
 
 	if (debug) {
 		// use dummy time for emulator
@@ -222,7 +222,7 @@ static void shadow_update_proc(Layer *layer, GContext *ctx) {
 	Time mode_time = s_last_time;
 
 	// Calculate hours hand.
-	if (((s_last_time.minutes % 10 == 0) && (s_last_time.seconds == 0)) || (animpercent < 100)) {
+	if (((s_last_time.minutes % 5 == 0) && ((s_last_time.seconds == 0) || low_power_mode)) || (animpercent < 100)) {
 		int outer_h = animradius+HAND_MARGIN_H;
 		if (outer_h < HAND_MARGIN_H) {
 			outer_h = HAND_MARGIN_H;
@@ -236,7 +236,7 @@ static void shadow_update_proc(Layer *layer, GContext *ctx) {
 	}
 
 	// Calculate minutes hand.
-	if ((s_last_time.seconds % 10 == 0) || (animpercent < 100)) {
+	if ((s_last_time.seconds % 10 == 0) || low_power_mode || (animpercent < 100)) {
 		int outer_m = animradius+HAND_MARGIN_M;
 		if (outer_m < HAND_MARGIN_M) {
 			outer_m = HAND_MARGIN_M;
@@ -249,20 +249,22 @@ static void shadow_update_proc(Layer *layer, GContext *ctx) {
 		minute_hand_outer = gpoint_from_polar(bounds_mo, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(minute_deg));
 	}
 
-	// Calculate seconds hand.
-	if (animpercent < 100) {
-		int outer_s = animradius+HAND_MARGIN_S;
-		if (outer_s < HAND_MARGIN_S) {
-			outer_s = HAND_MARGIN_S;
+	if (!low_power_mode) {
+		// Calculate seconds hand.
+		if (animpercent < 100) {
+			int outer_s = animradius+HAND_MARGIN_S;
+			if (outer_s < HAND_MARGIN_S) {
+				outer_s = HAND_MARGIN_S;
+			}
+			if (outer_s > maxradius) {
+				outer_s = maxradius;
+			}
+			GRect bounds_so = grect_inset(bounds_h, GEdgeInsets(outer_s));
+			float second_deg = get_angle_for_second(mode_time.seconds);
+			second_hand_outer = gpoint_from_polar(bounds_so, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(second_deg));
+		} else {
+			second_hand_outer = second_hand_table[mode_time.seconds];
 		}
-		if (outer_s > maxradius) {
-			outer_s = maxradius;
-		}
-		GRect bounds_so = grect_inset(bounds_h, GEdgeInsets(outer_s));
-		float second_deg = get_angle_for_second(mode_time.seconds);
-		second_hand_outer = gpoint_from_polar(bounds_so, GOvalScaleModeFillCircle, DEG_TO_TRIGANGLE(second_deg));
-	} else {
-		second_hand_outer = second_hand_table[mode_time.seconds];
 	}
 
 	graphics_context_set_stroke_width(ctx, whwidth);
@@ -275,15 +277,18 @@ static void shadow_update_proc(Layer *layer, GContext *ctx) {
 	s_center.y += 1;
 	graphics_draw_line(ctx, s_center, minute_hand_outer);
 
-	graphics_context_set_stroke_width(ctx, shwidth);
-	second_hand_outer.y += SHADOW_OFFSET+2;
-	s_center.y += 1;
-	graphics_draw_line(ctx, s_center, second_hand_outer);
+	if (!low_power_mode) {
+		graphics_context_set_stroke_width(ctx, shwidth);
+		second_hand_outer.y += SHADOW_OFFSET+2;
+		s_center.y += 1;
+		graphics_draw_line(ctx, s_center, second_hand_outer);
+		second_hand_outer.y -= SHADOW_OFFSET+2;
+		s_center.y -= 1;
+	}
 
 	hour_hand_outer.y -= SHADOW_OFFSET;
 	minute_hand_outer.y -= SHADOW_OFFSET+1;
-	second_hand_outer.y -= SHADOW_OFFSET+2;
-	s_center.y -= SHADOW_OFFSET+2;
+	s_center.y -= SHADOW_OFFSET+1;
 }
 
 static void update_proc(Layer *layer, GContext *ctx) {
@@ -298,10 +303,12 @@ static void update_proc(Layer *layer, GContext *ctx) {
 	graphics_context_set_stroke_color(ctx, gcolorm);
 	graphics_draw_line(ctx, s_center, minute_hand_outer);
 
-	// Draw seconds hand.
-	graphics_context_set_stroke_width(ctx, shwidth);
-	graphics_context_set_stroke_color(ctx, gcolors);
-	graphics_draw_line(ctx, s_center, second_hand_outer);
+	if (!low_power_mode) {
+		// Draw seconds hand.
+		graphics_context_set_stroke_width(ctx, shwidth);
+		graphics_context_set_stroke_color(ctx, gcolors);
+		graphics_draw_line(ctx, s_center, second_hand_outer);
+	}
 
 	// Draw pin.
 	graphics_context_set_fill_color(ctx, gcolorp);
@@ -362,7 +369,9 @@ static void window_load(Window *window) {
 	s_date_layer = text_layer_create(DATE_RECT_RIGHT);
 
 	fill_tick_tables(tick_canvas_layer);
-	fill_second_hand_table(s_canvas_layer);
+	if (!low_power_mode) {
+		fill_second_hand_table(s_canvas_layer);
+	}
 
 	text_layer_set_text(s_date_layer, date_buffer);
 	text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
@@ -438,7 +447,11 @@ static void init() {
 	});
 	window_stack_push(s_main_window, true);
 
-	tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
+	if (!low_power_mode) {
+		tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
+	} else {
+		tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+	}
 
 	if (debug) {
 		light_enable(true);
