@@ -11,15 +11,19 @@
 #define ANIMATION_DURATION     750
 #define ANIMATION_DELAY        0
 
-#define DATE_RECT_RIGHT GRect(90, 77, 80, 40)
-#define DATE_RECT_TOP GRect(50, 48, 80, 40)
-#define DATE_RECT_BOTTOM GRect(50, 118, 80, 40)
+#define DATE_RECT_RIGHT GRect(90, 77, 80, 20)
+#define DATE_RECT_TOP GRect(50, 48, 80, 20)
+#define DATE_RECT_BOTTOM GRect(50, 118, 80, 20)
+
+#define WEATHER_RECT GRect(0, 0, 180, 20)
 
 #define LOGO_RECT GRect(80, 140, 19, 6)
 
 #define DATE_POS_RIGHT 0
 #define DATE_POS_BOTTOM 1
 #define DATE_POS_TOP 2
+
+#define WEATHER_TEMPERATURE_KEY 0
 
 typedef struct {
 	int hours;
@@ -41,7 +45,7 @@ typedef enum {
 
 static Window *s_main_window;
 static Layer *bg_canvas_layer, *s_canvas_layer, *shadow_canvas_layer, *tick_canvas_layer;
-static TextLayer *s_date_layer;
+static TextLayer *s_date_layer, *s_weather_layer;
 
 static GBitmap *s_logo;
 static BitmapLayer *s_logo_layer;
@@ -67,6 +71,9 @@ static GColor gcolort;
 
 static char date_buffer[16] = "Mon Day ##";
 
+static AppSync s_sync;
+static uint8_t s_sync_buffer[64];
+
 /*************************** AnimationImplementation **************************/
 
 static void animation_started(Animation *anim, void *context) {
@@ -90,6 +97,37 @@ static void animate(int duration, int delay, AnimationImplementation *implementa
 		}, NULL);
 	}
 	animation_schedule(anim);
+}
+
+/********************************** Weather ***********************************/
+
+static void sync_error_callback(DictionaryResult dict_error, AppMessageResult app_message_error, void *context) {
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "App Message Sync Error: %d", app_message_error);
+}
+
+static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tuple, const Tuple* old_tuple, void* context) {
+	switch (key) {
+	  case WEATHER_TEMPERATURE_KEY:
+	    // App Sync keeps new_tuple in s_sync_buffer, so we may use it directly
+	    text_layer_set_text(s_weather_layer, new_tuple->value->cstring);
+	    break;
+	}
+}
+
+static void request_weather(void) {
+  DictionaryIterator *iter;
+  app_message_outbox_begin(&iter);
+
+  if (!iter) {
+    // Error creating outbound message
+    return;
+  }
+
+  int value = 1;
+  dict_write_int(iter, 0, &value, sizeof(int), true);
+  dict_write_end(iter);
+
+  app_message_outbox_send();
 }
 
 /************************************ UI **************************************/
@@ -156,6 +194,10 @@ static void tick_handler(struct tm *tick_time, TimeUnits changed) {
 		}
 	}
 
+	if (changed & HOUR_UNIT) {
+		request_weather();
+	}
+
 	if (changed & DAY_UNIT) {
 		strftime(date_buffer, sizeof(date_buffer), "%a %d", tick_time);
 		if (tick_time->tm_mday < 10) {
@@ -192,6 +234,10 @@ static void tick_update_proc(Layer *layer, GContext *ctx) {
 	graphics_context_set_stroke_color(ctx, gcolort);
 
 	for(int i = 0; i < 60; i += 1) {
+		if ((i == 0) || (i == 1) || (i == 59)) {
+			continue;
+		}
+
 		int angle = i * 6;
 
 		if (angle % 30 != 0) {
@@ -367,6 +413,7 @@ static void window_load(Window *window) {
 	shadow_canvas_layer = layer_create(window_bounds);
 	tick_canvas_layer = layer_create(window_bounds);
 	s_date_layer = text_layer_create(DATE_RECT_RIGHT);
+	s_weather_layer = text_layer_create(WEATHER_RECT);
 
 	fill_tick_tables(tick_canvas_layer);
 	if (!low_power_mode) {
@@ -378,6 +425,12 @@ static void window_load(Window *window) {
 	text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
 	text_layer_set_text_color(s_date_layer, GColorDarkGray);
 	text_layer_set_background_color(s_date_layer, GColorClear);
+
+	text_layer_set_text(s_weather_layer, "--");
+	text_layer_set_font(s_weather_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+	text_layer_set_text_alignment(s_weather_layer, GTextAlignmentCenter);
+	text_layer_set_text_color(s_weather_layer, GColorDarkGray);
+	text_layer_set_background_color(s_weather_layer, GColorClear);
 
 	if (date_position == DATE_POS_RIGHT) {
 		layer_set_frame(text_layer_get_layer(s_date_layer), DATE_RECT_RIGHT);
@@ -395,8 +448,19 @@ static void window_load(Window *window) {
 	layer_add_child(bg_canvas_layer, shadow_canvas_layer);
 	layer_add_child(bg_canvas_layer, tick_canvas_layer);
 	layer_add_child(bg_canvas_layer, text_layer_get_layer(s_date_layer));
+	layer_add_child(bg_canvas_layer, text_layer_get_layer(s_weather_layer));
 	layer_add_child(bg_canvas_layer, bitmap_layer_get_layer(s_logo_layer));
 	layer_add_child(bg_canvas_layer, s_canvas_layer);
+
+	Tuplet initial_weather[] = {
+	  TupletCString(WEATHER_TEMPERATURE_KEY, "--")
+	};
+
+	app_sync_init(&s_sync, s_sync_buffer, sizeof(s_sync_buffer),
+	    initial_weather, ARRAY_LENGTH(initial_weather),
+	    sync_tuple_changed_callback, sync_error_callback, NULL);
+
+	request_weather();
 }
 
 static void window_unload(Window *window) {
@@ -404,6 +468,7 @@ static void window_unload(Window *window) {
 	layer_destroy(shadow_canvas_layer);
 	layer_destroy(tick_canvas_layer);
 	text_layer_destroy(s_date_layer);
+	text_layer_destroy(s_weather_layer);
 	gbitmap_destroy(s_logo);
 	bitmap_layer_destroy(s_logo_layer);
 	layer_destroy(s_canvas_layer);
@@ -463,6 +528,8 @@ static void init() {
 		.pebble_app_connection_handler = handle_bluetooth
 	});
 
+	app_message_open(64, 64);
+
 	// app_message_register_inbox_received(inbox_received_handler);
 	// app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 
@@ -475,6 +542,7 @@ static void init() {
 
 static void deinit() {
 	window_destroy(s_main_window);
+	app_sync_deinit(&s_sync);
 }
 
 int main() {

@@ -1,13 +1,22 @@
 {
+	"appKeys": {
+	  "WEATHER_TEMPERATURE_KEY": 0
+	},
     "companyName": "Sapphirine Design",
     "longName": "Round Analog",
     "projectType": "native",
     "resources": {
         "media": [
 	        {
-	        	"type": "bitmap",
+	        	"file": "round.png",
 	        	"name": "LOGO",
-	        	"file": "round.png"
+	        	"type": "bitmap"
+	        },
+	        {
+				"characterRegex": "[0-9:A-Za-z ]",
+				"file": "nupe.ttf",
+				"name": "FONT_NUPE_23",
+				"type": "font"
 	        }
         ]
     },
